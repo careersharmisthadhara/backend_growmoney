@@ -1,0 +1,27 @@
+{
+  "name": "backend_growmoney",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+ "scripts": {
+    "build": "rimraf dist && tsc",
+    "build:zip": "npm run build && powershell Compress-Archive -Path dist/* -DestinationPath lambda.zip -Force",
+    "dev": "ts-node src/handlers/calculate.handler.ts",
+    "lint": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1121.0",
+    "@aws-sdk/lib-dynamodb": "^3.1121.0",
+    "uuid": "^14.0.2"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.162",
+    "@types/node": "^26.4.0",
+    "rimraf": "^6.1.3",
+    "typescript": "^7.0.2"
+  }
+}
