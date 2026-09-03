@@ -33,17 +33,6 @@ Resources:
           Value: !Ref Environment
 
   # ─── S3 BUCKET FOR LAMBDA CODE ────────────────────────
-  LambdaCodeBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Sub "growmoney-lambda-code-${AWS::AccountId}"
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: true
-        BlockPublicPolicy: true
-        IgnorePublicAcls: true
-        RestrictPublicBuckets: true
-      VersioningConfiguration:
-        Status: Enabled
 
   # ─── IAM ROLE FOR LAMBDA ──────────────────────────────
   LambdaExecutionRole:
@@ -95,7 +84,7 @@ Resources:
           NODE_ENV:   !Ref Environment
           AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
       Code:
-        S3Bucket: !Ref LambdaCodeBucket
+        S3Bucket: !Ref growmoney-lambda-code-459524413332
         S3Key:    lambda.zip
       Tags:
         - Key: Project
@@ -176,5 +165,5 @@ Outputs:
     Description: Lambda Function Name
 
   LambdaBucket:
-    Value: !Ref LambdaCodeBucket
+    Value: !Ref growmoney-lambda-code-459524413332
     Description: S3 Bucket for Lambda code
