@@ -1,0 +1,180 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: GrowMoney Backend - Lambda + API Gateway + DynamoDB
+
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues: [development, production]
+
+Resources:
+
+  # ─── DYNAMODB TABLE ───────────────────────────────────
+  CalculationsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "growmoney-calculations-${Environment}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: calculationId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: calculationId
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Project
+          Value: GrowMoney
+        - Key: Environment
+          Value: !Ref Environment
+
+  # ─── S3 BUCKET FOR LAMBDA CODE ────────────────────────
+  LambdaCodeBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "growmoney-lambda-code-${AWS::AccountId}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+
+  # ─── IAM ROLE FOR LAMBDA ──────────────────────────────
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "growmoney-lambda-role-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: GrowMoneyLambdaPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # DynamoDB access
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Scan
+                  - dynamodb:Query
+                Resource: !GetAtt CalculationsTable.Arn
+
+              # CloudWatch Logs
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:*:*:*
+
+  # ─── LAMBDA FUNCTION ──────────────────────────────────
+  CalculateLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "growmoney-calculate-${Environment}"
+      Runtime: nodejs22.x
+      Handler: handlers/calculate.handler.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 30
+      MemorySize: 256
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref CalculationsTable
+          NODE_ENV:   !Ref Environment
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key:    lambda.zip
+      Tags:
+        - Key: Project
+          Value: GrowMoney
+
+  # ─── CLOUDWATCH LOG GROUP ─────────────────────────────
+  LambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/growmoney-calculate-${Environment}"
+      RetentionInDays: 30
+
+  # ─── API GATEWAY ──────────────────────────────────────
+  GrowMoneyApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub "growmoney-api-${Environment}"
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowOrigins:
+          - '*'
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+          - Authorization
+
+  LambdaIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref GrowMoneyApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !GetAtt CalculateLambda.Arn
+      PayloadFormatVersion: '2.0'
+
+  CalculateRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:    !Ref GrowMoneyApi
+      RouteKey: 'POST /calculate'
+      Target:   !Sub "integrations/${LambdaIntegration}"
+
+  StatsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:    !Ref GrowMoneyApi
+      RouteKey: 'GET /stats'
+      Target:   !Sub "integrations/${LambdaIntegration}"
+
+  ApiStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId:      !Ref GrowMoneyApi
+      StageName:  !Ref Environment
+      AutoDeploy: true
+
+  LambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt CalculateLambda.Arn
+      Action:       lambda:InvokeFunction
+      Principal:    apigateway.amazonaws.com
+      SourceArn:    !Sub "${GrowMoneyApi.Arn}/*/*"
+
+Outputs:
+  ApiUrl:
+    Value: !Sub "https://${GrowMoneyApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
+    Description: GrowMoney API URL — use this in frontend
+
+  TableName:
+    Value: !Ref CalculationsTable
+    Description: DynamoDB Table Name
+
+  LambdaName:
+    Value: !Ref CalculateLambda
+    Description: Lambda Function Name
+
+  LambdaBucket:
+    Value: !Ref LambdaCodeBucket
+    Description: S3 Bucket for Lambda code

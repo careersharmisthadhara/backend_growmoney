@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
- "scripts": {
+  "scripts": {
     "build": "rimraf dist && tsc",
     "build:zip": "npm run build && powershell Compress-Archive -Path dist/* -DestinationPath lambda.zip -Force",
     "dev": "ts-node src/handlers/calculate.handler.ts",
+   "test:local": "node dist/test.local.js",
     "lint": "tsc --noEmit"
   },
   "keywords": [],
@@ -15,13 +16,15 @@
   "type": "commonjs",
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1121.0",
-    "@aws-sdk/lib-dynamodb": "^3.1121.0",
+    "@aws-sdk/util-dynamodb": "^3.996.9",
     "uuid": "^14.0.2"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.162",
-    "@types/node": "^26.4.0",
+    "@types/node": "^26.4.1",
     "rimraf": "^6.1.3",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^7.0.2"
   }
 }
