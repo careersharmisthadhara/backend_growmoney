@@ -9,7 +9,6 @@ Parameters:
 
 Resources:
 
-  # ─── DYNAMODB TABLE ───────────────────────────────────
   CalculationsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -26,13 +25,7 @@ Resources:
         Enabled: true
       SSESpecification:
         SSEEnabled: true
-      Tags:
-        - Key: Project
-          Value: GrowMoney
-        - Key: Environment
-          Value: !Ref Environment
 
-  # ─── IAM ROLE FOR LAMBDA ──────────────────────────────
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -49,7 +42,6 @@ Resources:
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
-              # DynamoDB access
               - Effect: Allow
                 Action:
                   - dynamodb:PutItem
@@ -57,8 +49,6 @@ Resources:
                   - dynamodb:Scan
                   - dynamodb:Query
                 Resource: !GetAtt CalculationsTable.Arn
-
-              # CloudWatch Logs
               - Effect: Allow
                 Action:
                   - logs:CreateLogGroup
@@ -66,7 +56,6 @@ Resources:
                   - logs:PutLogEvents
                 Resource: arn:aws:logs:*:*:*
 
-  # ─── LAMBDA FUNCTION ──────────────────────────────────
   CalculateLambda:
     Type: AWS::Lambda::Function
     Properties:
@@ -79,23 +68,18 @@ Resources:
       Environment:
         Variables:
           TABLE_NAME: !Ref CalculationsTable
-          NODE_ENV:   !Ref Environment
+          NODE_ENV: !Ref Environment
           AWS_NODEJS_CONNECTION_REUSE_ENABLED: '1'
       Code:
-        S3Bucket: !Ref growmoney-lambda-code-459524413332
-        S3Key:    lambda.zip
-      Tags:
-        - Key: Project
-          Value: GrowMoney
+        S3Bucket: !Sub "growmoney-lambda-code-${AWS::AccountId}"
+        S3Key: lambda.zip
 
-  # ─── CLOUDWATCH LOG GROUP ─────────────────────────────
   LambdaLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub "/aws/lambda/growmoney-calculate-${Environment}"
       RetentionInDays: 30
 
-  # ─── API GATEWAY ──────────────────────────────────────
   GrowMoneyApi:
     Type: AWS::ApiGatewayV2::Api
     Properties:
@@ -123,36 +107,36 @@ Resources:
   CalculateRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
-      ApiId:    !Ref GrowMoneyApi
+      ApiId: !Ref GrowMoneyApi
       RouteKey: 'POST /calculate'
-      Target:   !Sub "integrations/${LambdaIntegration}"
+      Target: !Sub "integrations/${LambdaIntegration}"
 
   StatsRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
-      ApiId:    !Ref GrowMoneyApi
+      ApiId: !Ref GrowMoneyApi
       RouteKey: 'GET /stats'
-      Target:   !Sub "integrations/${LambdaIntegration}"
+      Target: !Sub "integrations/${LambdaIntegration}"
 
   ApiStage:
     Type: AWS::ApiGatewayV2::Stage
     Properties:
-      ApiId:      !Ref GrowMoneyApi
-      StageName:  !Ref Environment
+      ApiId: !Ref GrowMoneyApi
+      StageName: !Ref Environment
       AutoDeploy: true
 
   LambdaPermission:
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !GetAtt CalculateLambda.Arn
-      Action:       lambda:InvokeFunction
-      Principal:    apigateway.amazonaws.com
-      SourceArn:    !Sub "${GrowMoneyApi.Arn}/*/*"
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "${GrowMoneyApi.Arn}/*/*"
 
 Outputs:
   ApiUrl:
     Value: !Sub "https://${GrowMoneyApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
-    Description: GrowMoney API URL — use this in frontend
+    Description: GrowMoney API URL
 
   TableName:
     Value: !Ref CalculationsTable
@@ -161,7 +145,3 @@ Outputs:
   LambdaName:
     Value: !Ref CalculateLambda
     Description: Lambda Function Name
-
-  LambdaBucket:
-    Value: !Ref growmoney-lambda-code-459524413332
-    Description: S3 Bucket for Lambda code
