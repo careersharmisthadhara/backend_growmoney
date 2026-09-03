@@ -32,8 +32,6 @@ Resources:
         - Key: Environment
           Value: !Ref Environment
 
-  # ─── S3 BUCKET FOR LAMBDA CODE ────────────────────────
-
   # ─── IAM ROLE FOR LAMBDA ──────────────────────────────
   LambdaExecutionRole:
     Type: AWS::IAM::Role
