@@ -26,6 +26,7 @@ jobs:
 
       - name: Create Lambda ZIP
         run: |
+          cp -r node_modules dist/
           cd dist
           zip -r ../lambda.zip .
           cd ..

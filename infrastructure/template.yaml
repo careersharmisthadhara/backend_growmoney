@@ -61,7 +61,7 @@ Resources:
     Properties:
       FunctionName: !Sub "growmoney-calculate-${Environment}"
       Runtime: nodejs22.x
-      Handler: handlers/calculate.handler.handler
+      Handler: handlers/calculate.handler
       Role: !GetAtt LambdaExecutionRole.Arn
       Timeout: 30
       MemorySize: 256
