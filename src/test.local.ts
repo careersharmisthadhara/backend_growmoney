@@ -1,4 +1,4 @@
-import { handler } from './handlers/calculate.handler';
+import { handler } from './handlers/calculate';
 import { APIGatewayProxyStructuredResultV2 } from 'aws-lambda';
 
 // Fake API Gateway event for POST /calculate
